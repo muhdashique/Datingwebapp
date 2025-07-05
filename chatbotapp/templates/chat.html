@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Chatbot - Chat{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        max-width: 800px;
+        margin: 0 auto;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .chat-header {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-header h2 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        background: #4ade80;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .chat-controls {
+        display: flex;
+        gap: 10px;
+    }
+
+    .chat-controls button {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9em;
+    }
+
+    .chat-controls button:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .chat-messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        background: #f8f9fa;
+    }
+
+    .message {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        animation: fadeIn 0.3s ease-out;
+        word-wrap: break-word;
+        position: relative;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-user {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 6px;
+    }
+
+    .message-bot {
+        background: white;
+        color: #374151;
+        align-self: flex-start;
+        border-bottom-left-radius: 6px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .message-system {
+        background: #e3f2fd;
+        color: #1565c0;
+        align-self: center;
+        text-align: center;
+        font-style: italic;
+        border-radius: 10px;
+        max-width: 90%;
+    }
+
+    .message-timestamp {
+        font-size: 0.75em;
+        opacity: 0.7;
+        margin-top: 5px;
+    }
+
+    .typing-indicator {
+        display: none;
+        align-self: flex-start;
+        padding: 12px 16px;
+        background: white;
+        border-radius: 18px;
+        border-bottom-left-radius: 6px;
+        border: 1px solid #e5e7eb;
+        max-width: 70px;
+    }
+
+    .typing-dots {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #9ca3af;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-10px); }
+    }
+
+    .chat-input-container {
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .chat-input-form {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+    }
+
+    .chat-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 25px;
+        outline: none;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        resize: none;
+        min-height: 50px;
+        max-height: 120px;
+    }
+
+    .chat-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .send-button {
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 50px;
+    }
+
+    .send-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .send-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+
+    .welcome-message {
+        text-align: center;
+        color: #6b7280;
+        font-style: italic;
+        margin: 40px 0;
+    }
+
+    @media (max-width: 768px) {
+        .chat-container {
+            height: 85vh;
+            margin: 10px;
+            border-radius: 15px;
+        }
+
+        .message {
+            max-width: 85%;
+        }
+
+        .chat-header {
+            padding: 15px;
+        }
+
+        .chat-header h2 {
+            font-size: 1.3em;
+        }
+
+        .chat-controls {
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .chat-controls button {
+            padding: 6px 10px;
+            font-size: 0.8em;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>
+                <i class="fas fa-robot"></i>
+                AI Assistant
+            </h2>
+            <div class="d-flex align-items-center gap-3">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>Online</span>
+                </div>
+                <div class="chat-controls">
+                    <button onclick="newChat()" title="New Chat">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                    <button onclick="clearChat()" title="Clear Chat">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="message message-{{ message.message_type }}">
+                        {{ message.content }}
+                        <div class="message-timestamp">
+                            {{ message.timestamp|date:"H:i" }}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="welcome-message">
+                    <p>👋 Welcome to the AI Chatbot!</p>
+                    <p>Start a conversation by typing a message below.</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <form class="chat-input-form" id="chatForm">
+                {% csrf_token %}
+                <textarea 
+                    class="chat-input" 
+                    id="messageInput" 
+                    placeholder="Type your message..."
+                    rows="1"
+                    autocomplete="off"
+                ></textarea>
+                <button type="submit" class="send-button" id="sendButton">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Send</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Chat configuration
+    const CHAT_CONFIG = {
+        sessionId: '{{ chat_session.id }}',
+        csrfToken: document.querySelector('[name=csrfmiddlewaretoken]').value,
+        apiEndpoints: {
+            sendMessage: '{% url "send_message" %}',
+            newChat: '{% url "new_chat" %}',
+            clearChat: '{% url "clear_chat" %}'
+        }
+    };
+
+    // DOM elements
+    const chatMessages = document.getElementById('chatMessages');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const chatForm = document.getElementById('chatForm');
+
+    // Chat state
+    let isTyping = false;
+
+    // Initialize chat
+    document.addEventListener('DOMContentLoaded', function() {
+        messageInput.focus();
+        scrollToBottom();
+        adjustTextareaHeight();
+    });
+
+    // Handle form submission
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    // Handle textarea input
+    messageInput.addEventListener('input', adjustTextareaHeight);
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Send message function
+    async function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message || isTyping) return;
+
+        // Add user message to chat
+        addMessage(message, 'user');
+        
+        // Clear input and show typing
+        messageInput.value = '';
+        adjustTextareaHeight();
+        setTyping(true);
+        showTypingIndicator();
+
+        try {
+            const response = await fetch(CHAT_CONFIG.apiEndpoints.sendMessage, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CHAT_CONFIG.csrfToken
+                },
+                body: JSON.stringify({
+                    message: message,
+                    session_id: CHAT_CONFIG.sessionId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Add bot response
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    addMessage(data.bot_message.content, 'bot');
+                    setTyping(false);
+                }, 1000 + Math.random() * 1000); // Simulate thinking time
+            } else {
+                hideTypingIndicator();
+                addMessage('Sorry, I encountered an error. Please try again.', 'system');
+                setTyping(false);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            hideTypingIndicator();
+            addMessage('Connection error. Please check your internet connection.', 'system');
+            setTyping(false);
+        }
+    }
+
+    // Add message to chat
+    function addMessage(content, type) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${type}`;
+        
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+        });
+        
+        messageDiv.innerHTML = `
+            ${content}
+            <div class="message-timestamp">${timestamp}</div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        scrollToBottom();
+    }
+
+    // Typing indicator functions
+    function showTypingIndicator() {
+        typingIndicator.style.display = 'block';
+        scrollToBottom();
+    }
+
+    function hideTypingIndicator() {
+        typingIndicator.style.display = 'none';
+    }
+
+    function setTyping(typing) {
+        isTyping = typing;
+        sendButton.disabled = typing;
+        messageInput.disabled = typing;
+    }
+
+    // Utility functions
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function adjustTextareaHeight() {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+    }
+
+    // Chat actions
+    async function newChat() {
+        if (confirm('Start a new chat? This will clear the current conversation.')) {
+            try {
+                const response = await fetch(CHAT_CONFIG.apiEndpoints.newChat, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': CHAT_CONFIG.csrfToken
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error creating new chat:', error);
+                alert('Failed to create new chat. Please try again.');
+            }
+        }
+    }
+
+    async function clearChat() {
+        if (confirm('Clear all messages in this chat?')) {
+            try {
+                const response = await fetch(CHAT_CONFIG.apiEndpoints.clearChat, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CHAT_CONFIG.csrfToken
+                    },
+                    body: JSON.stringify({
+                        session_id: CHAT_CONFIG.sessionId
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    chatMessages.innerHTML = `
+                        <div class="welcome-message">
+                            <p>👋 Chat cleared! Start a new conversation.</p>
+                        </div>
+                    `;
+                    messageInput.focus();
+                }
+            } catch (error) {
+                console.error('Error clearing chat:', error);
+                alert('Failed to clear chat. Please try again.');
+            }
+        }
+    }
+
+    // Auto-resize textarea on window resize
+    window.addEventListener('resize', function() {
+        setTimeout(() => {
+            scrollToBottom();
+        }, 100);
+    });
+</script>
+
+
+{% endblock %}
